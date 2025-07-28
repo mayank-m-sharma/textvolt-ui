@@ -82,7 +82,7 @@ function Analytics() {
   // Get selected_number from URL query params
   const getSelectedNumber = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('selected_number');
+    return urlParams.get('selected_number') || '+12109647879';
   };
   
   const selectedNumber = getSelectedNumber();
