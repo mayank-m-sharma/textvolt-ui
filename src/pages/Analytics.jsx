@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, Label } from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, Label, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import "./Analytics.css"
+import SegmentsSentChart from '../components/organisms/analytics/SegmentsSentChart';
+
 const COLORS = ['#efe811', '#8884d8', '#82ca9d', '#ffc658'];
 const FADE_COLOR = '#f0f0f0';
 
@@ -71,15 +73,54 @@ function Analytics() {
   const [endDate, setEndDate] = useState(end);
   const [optOut, setOptOut] = useState(getRandomPercentage());
   const [delivery, setDelivery] = useState(getRandomPercentage());
+  const [segmentsData, setSegmentsData] = useState([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(false);
+  const [segmentsError, setSegmentsError] = useState(null);
+  
   const today = new Date().toISOString().split('T')[0];
+  
+  // Get selected_number from URL query params
+  const getSelectedNumber = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('selected_number');
+  };
+  
+  const selectedNumber = getSelectedNumber();
+
+  // Function to fetch segments data
+  const fetchSegmentsData = async () => {
+    if (!startDate || !endDate || startDate > endDate || !selectedNumber) return;
+    
+    setSegmentsLoading(true);
+    setSegmentsError(null);
+    
+    try {
+      // Replace this URL with your actual API endpoint
+      const response = await fetch(`https://textvolt-api-v1.onrender.com/api/analytics/get-segments-sent?number=${encodeURIComponent(selectedNumber)}&startDate=${startDate}&endDate=${endDate}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setSegmentsData(result.data || []);
+      } else {
+        setSegmentsError(result.error || 'Failed to fetch data');
+        setSegmentsData([]);
+      }
+    } catch (error) {
+      setSegmentsError(error.message);
+      setSegmentsData([]);
+    } finally {
+      setSegmentsLoading(false);
+    }
+  };
 
   // Update charts automatically when period changes
-  React.useEffect(() => {
-    if (startDate && endDate && startDate <= endDate) {
+  useEffect(() => {
+    if (startDate && endDate && startDate <= endDate && selectedNumber) {
       setOptOut(getRandomPercentage());
       setDelivery(getRandomPercentage());
+      fetchSegmentsData();
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedNumber]);
 
   const handleDateChange = (setter) => (e) => {
     setter(e.target.value);
@@ -119,10 +160,17 @@ function Analytics() {
           />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 24, justifyContent: 'center' }}>
+      
+      <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginBottom: 24 }}>
         <GaugeChart value={optOut} label="Opt-out %" fillColor={COLORS[2]} />
         <GaugeChart value={delivery} label="Delivery %" fillColor={COLORS[3]} />
+        <SegmentsSentChart 
+          data={segmentsData} 
+          isLoading={segmentsLoading} 
+          error={segmentsError} 
+        />
       </div>
+
       {(startDate && endDate && startDate > endDate) && (
         <div style={{ color: 'red', marginTop: 12 }}>Start date must be before or equal to end date.</div>
       )}
@@ -130,4 +178,4 @@ function Analytics() {
   );
 }
 
-export default Analytics; 
+export default Analytics;
